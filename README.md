@@ -1,3 +1,11 @@
 # C Uring Chat
 
-A simple chat in C to test IO Urings.
+A simple CLI chat application in C to test Linux IO Uring.
+
+## Roadmap
+
+- [x] IO Uring
+- [ ] Chat server
+- [ ] Chat client
+- [ ] Encryption
+- [ ] TCP NAT traversal
