@@ -2,7 +2,7 @@
 #include "sock_util.h"
 #include "misc_util.h"
 
-const char *const enter_name_prompt = "Welcome!\nEnter your name: ";
+const char *const enter_name_prompt = "Enter your name: ";
 
 #define BUF_SIZE 4096
 
@@ -27,7 +27,7 @@ void on_stdin(UringCallbackContext *context, Buffer buf)
         buffer_free(buf);
         return;
     }
-    
+
     uring_read(context->uring, STDIN_FILENO, buf, 0, on_stdin, 0);
 }
 
