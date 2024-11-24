@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
 void *ptr_or_exit(void *ptr, const char *message)
 {
@@ -34,13 +36,11 @@ struct Array
 
 typedef struct Array Array;
 
-Array *array_new(size_t capacity)
+void array_init(Array *array, size_t capacity)
 {
-    Array *array = malloc(sizeof(Array));
     array->data = malloc(capacity * sizeof(void *));
     array->length = 0;
     array->capacity = capacity;
-    return array;
 }
 
 void array_resize(Array *array, size_t new_capacity)
@@ -83,6 +83,104 @@ void array_remove(Array *array, size_t index)
     }
 
     array->length--;
+}
+
+struct Buffer
+{
+    char *data;
+    size_t length;
+    size_t capacity;
+};
+
+typedef struct Buffer Buffer;
+
+void buffer_init(Buffer *buffer, size_t capacity)
+{
+    buffer->data = malloc(capacity);
+    buffer->capacity = capacity;
+    buffer->length = 0;
+}
+
+void buffer_resize(Buffer *buffer, size_t new_capacity)
+{
+    buffer->data = realloc(buffer->data, new_capacity);
+    buffer->capacity = new_capacity;
+}
+
+Buffer buffer_build(size_t capacity)
+{
+    printf("Building buffer with capacity %ld\n", capacity);
+    Buffer buffer;
+    buffer_init(&buffer, capacity);
+    return buffer;
+}
+
+Buffer *buffer_new(size_t capacity)
+{
+    Buffer *buffer = malloc(sizeof(Buffer));
+    buffer_init(buffer, capacity);
+    return buffer;
+}
+
+void buffer_free(Buffer buffer)
+{
+    free(buffer.data);
+}
+
+Buffer buffer_copy(Buffer *buffer)
+{
+    Buffer copy = buffer_build(buffer->capacity);
+    memcpy(copy.data, buffer->data, buffer->length);
+    copy.length = buffer->length;
+    return copy;
+}
+
+Buffer buffer_from_string(const char *string)
+{
+    Buffer buffer;
+    buffer.length = strlen(string) + 1;
+    buffer.data = malloc(buffer.length);
+    buffer.capacity = buffer.length;
+    strcpy(buffer.data, string);
+    return buffer;
+}
+
+void buffer_print(Buffer *buffer)
+{
+    for (size_t i = 0; i < buffer->length; i++)
+    {
+        char c = buffer->data[i];
+        if (isprint(c))
+            printf("%c", c);
+        else
+            printf("[%x]", c);
+    }
+    printf("\n");
+}
+
+void buffer_append_string(Buffer *buffer, const char *string)
+{
+    size_t length = strlen(string);
+    size_t new_length = buffer->length + length;
+    if (new_length > buffer->capacity)
+    {
+        buffer_resize(buffer, new_length * 2);
+    }
+
+    strcpy(buffer->data + buffer->length - 1, string);
+    buffer->length = new_length;
+}
+
+void buffer_append(Buffer *buffer, Buffer *other)
+{
+    size_t new_length = buffer->length + other->length;
+    if (new_length > buffer->capacity)
+    {
+        buffer_resize(buffer, new_length * 2);
+    }
+
+    memcpy(buffer->data + buffer->length, other->data, other->length);
+    buffer->length = new_length;
 }
 
 #endif
