@@ -48,6 +48,7 @@ struct Uring
       *cring_mask;
   UringTask *tasks;
   UringCompletion *completions;
+  bool running;
 };
 
 typedef struct Uring Uring;
@@ -119,6 +120,7 @@ bool uring_init(Uring *uring, unsigned int queue_length)
   uring->cring_tail = cq_ptr + p.cq_off.tail;
   uring->cring_mask = cq_ptr + p.cq_off.ring_mask;
   uring->completions = cq_ptr + p.cq_off.cqes;
+  uring->running = false;
 
   return true;
 }
@@ -165,7 +167,8 @@ bool uring_empty(Uring *uring)
 
 int uring_enter(Uring *uring)
 {
-  int ret = io_uring_enter(uring->ring_fd, 1, 1, IORING_ENTER_GETEVENTS);
+  int size = *uring->sring_tail - *uring->sring_head;
+  int ret = io_uring_enter(uring->ring_fd, size, 1, IORING_ENTER_GETEVENTS);
   if (ret < 0)
   {
     perror("io_uring_enter");
