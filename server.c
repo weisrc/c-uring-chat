@@ -21,7 +21,13 @@ typedef struct Client Client;
 
 void on_stdin(UringCallbackContext *context, Buffer buf)
 {
-    printf("Read %ld bytes\n", buf.length);
+    if (strcmp(buf.data, "exit\n") == 0)
+    {
+        uring_stop(context->uring);
+        buffer_free(buf);
+        return;
+    }
+    
     uring_read(context->uring, STDIN_FILENO, buf, 0, on_stdin, 0);
 }
 
