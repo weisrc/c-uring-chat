@@ -36,7 +36,9 @@ void broadcast_message(Uring *uring, Buffer *buf, Client *sender)
     for (int i = 0; i < clients.length; i++)
     {
         Client *client = array_get(&clients, i);
-        if (sender->id == client->id || !client->ready)
+        if (sender && client->id == sender->id)
+            continue;
+        if (!client->ready)
             continue;
         uring_write(uring, client->fd, buffer_copy(buf), 0, uring_null_callback, 0);
     }
@@ -57,8 +59,9 @@ void handle_client_disconnect(Uring *uring, int client_fd)
             Buffer message = buffer_from_string(client->name);
             buffer_append_string(&message, " left the chat\n");
             broadcast_message(uring, &message, client);
+            buffer_free(message);
 
-            free(client);
+            drop(client);
             return;
         }
     }
@@ -88,6 +91,8 @@ void on_client_message(UringCallbackContext *context, Buffer buf)
     buffer_append_string(&send_buf, buf.data);
     buffer_append_string(&send_buf, "\n");
 
+    printf("Client %s: %s\n", client->name, buf.data);
+
     broadcast_message(context->uring, &send_buf, client);
     buffer_free(send_buf);
 }
@@ -97,6 +102,7 @@ void client_read_message(Uring *uring, Client *client, Buffer buf)
     uring_read(uring, client->fd, buf, 0, on_client_message, (unsigned long long)client);
 }
 
+void client_onboarding(Uring *uring, Client *client);
 void on_client_enter_name(UringCallbackContext *context, Buffer buf)
 {
     Client *client = (Client *)context->data;
@@ -109,16 +115,32 @@ void on_client_enter_name(UringCallbackContext *context, Buffer buf)
     }
 
     strncpy(client->name, buf.data, sizeof(client->name));
-    strtok(client->name, "\n");
-    strtok(client->name, "\r");
-    printf("Client %d entered name: %s\n", client_fd, client->name);
+
+    for (int i = 0; i < strlen(client->name); i++)
+    {
+        if (client->name[i] == '\n' || client->name[i] == '\r')
+        {
+            client->name[i] = '\0';
+            break;
+        }
+    }
+
+    if (strlen(client->name) == 0)
+    {
+        uring_write(context->uring, client_fd, buffer_from_string("Name cannot be empty\n"), 0, uring_null_callback, 0);
+        client_onboarding(context->uring, client);
+        return;
+    }
+
+    printf("Client %d entered name: %s\n", client->id, client->name);
 
     client->ready = true;
     client_read_message(context->uring, client, buf);
 
     Buffer message = buffer_from_string(client->name);
     buffer_append_string(&message, " joined the chat\n");
-    broadcast_message(context->uring, &message, client);
+    broadcast_message(context->uring, &message, NULL);
+    buffer_free(message);
 }
 
 void client_onboarding(Uring *uring, Client *client)
@@ -131,14 +153,14 @@ void on_client_connect(UringCallbackContext *context)
 {
     int client_fd = (int)context->completion->res;
     int server_fd = (int)context->data;
+    printf("Accepted client %d\n", client_fd);
 
-    Client *client = malloc(sizeof(Client));
+    Client *client = new(Client);
     client->fd = client_fd;
     client->id = id_counter++;
     client->ready = false;
     array_push(&clients, client);
 
-    printf("Accepted client %d\n", client_fd);
     uring_accept(context->uring, server_fd, NULL, 0, on_client_connect, server_fd);
     client_onboarding(context->uring, client);
 }
@@ -150,16 +172,28 @@ int main(int argc, char *argv[])
     Uring *uring = ptr_or_exit(uring_new(64), "uring_new");
 
     int port = argc == 2 ? strtol(argv[1], NULL, 10) : 8901;
-    int server_fd = fd_or_exit(server(loopback_address(port)), "server");
+    int server_fd = fd_or_exit(tcp_server(loopback_address(port)), "tcp_server");
     printf("Listening on port %d\n", port);
 
     uring_read(uring, STDIN_FILENO, buffer_build(BUF_SIZE), 0, on_stdin, 0);
     uring_accept(uring, server_fd, NULL, 0, on_client_connect, server_fd);
 
     uring_run(uring);
-    free(uring);
+    drop(uring);
     close(server_fd);
 
+    for (int i = 0; i < clients.length; i++)
+    {
+        Client *client = array_get(&clients, i);
+        close(client->fd);
+        drop(client);
+    }
+
+    // drop(clients.data);
+
     printf("Server closed\n");
+
+    allocation_summary();
+
     return 0;
 }

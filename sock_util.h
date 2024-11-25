@@ -25,7 +25,7 @@ struct sockaddr_in loopback_address(int port)
     return address;
 }
 
-int server(struct sockaddr_in address)
+int tcp_server(struct sockaddr_in address)
 {
     int server_fd = _socket();
     if (server_fd < 0)
@@ -46,7 +46,7 @@ int server(struct sockaddr_in address)
     return server_fd;
 }
 
-int client(struct sockaddr_in address)
+int tcp_client(struct sockaddr_in address)
 {
     int client_fd = _socket();
 

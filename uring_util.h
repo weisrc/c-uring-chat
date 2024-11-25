@@ -44,10 +44,10 @@ typedef struct UringCallbackDataBuffer UringCallbackDataBuffer;
 
 Uring *uring_new(unsigned int queue_length)
 {
-    Uring *uring = malloc(sizeof(Uring));
+    Uring *uring = new(Uring);
     if (!uring_init(uring, queue_length))
     {
-        free(uring);
+        drop(uring);
         return NULL;
     }
     return uring;
@@ -57,7 +57,7 @@ void uring_accept(Uring *uring, int fd, struct sockaddr *addr, socklen_t addrlen
 {
     UringTask *task = uring_task(uring);
 
-    UringCallbackData *callback_data = malloc(sizeof(UringCallbackData));
+    UringCallbackData *callback_data = new(UringCallbackData);
     callback_data->callback = callback;
     callback_data->data = data;
 
@@ -74,7 +74,7 @@ void uring_close(Uring *uring, int fd, UringCallback callback, UnsafePointer dat
 {
     UringTask *task = uring_task(uring);
 
-    UringCallbackData *callback_data = malloc(sizeof(UringCallbackData));
+    UringCallbackData *callback_data = new(UringCallbackData);
     callback_data->callback = callback;
     callback_data->data = data;
 
@@ -89,7 +89,7 @@ void uring_read_write(Uring *uring, UringOp op, int fd, Buffer buf, off_t offset
 {
     UringTask *task = uring_task(uring);
 
-    UringCallbackData *callback_data = malloc(sizeof(UringCallbackData));
+    UringCallbackData *callback_data = new(UringCallbackData);
     callback_data->callback = callback;
     callback_data->data = data;
 
@@ -113,7 +113,7 @@ void uring_read_callback(UringCallbackContext *context)
     UnsafePointer data = callback_data->data;
     Buffer buf = callback_data->buf;
     buf.length = completion->res;
-    free(callback_data);
+    drop(callback_data);
 
     UringCallbackContext new_context = {uring, completion, data};
     callback(&new_context, buf);
@@ -121,7 +121,7 @@ void uring_read_callback(UringCallbackContext *context)
 
 void uring_read(Uring *uring, int fd, Buffer buf, off_t offset, UringReadCallback callback, UnsafePointer data)
 {
-    UringCallbackDataBuffer *callback_data = malloc(sizeof(UringCallbackDataBuffer));
+    UringCallbackDataBuffer *callback_data = new(UringCallbackDataBuffer);
     callback_data->callback = (UnsafePointer)callback;
     callback_data->data = data;
     callback_data->buf = buf;
@@ -139,7 +139,7 @@ void uring_write_callback(UringCallbackContext *context)
     UringCallback callback = (UringCallback)callback_data->callback;
     data = callback_data->data;
     Buffer buf = callback_data->buf;
-    free(callback_data);
+    drop(callback_data);
 
     UringCallbackContext new_context = {uring, completion, data};
     callback(&new_context);
@@ -148,7 +148,7 @@ void uring_write_callback(UringCallbackContext *context)
 
 void uring_write(Uring *uring, int fd, Buffer buf, off_t offset, UringCallback callback, UnsafePointer data)
 {
-    UringCallbackDataBuffer *callback_data = malloc(sizeof(UringCallbackDataBuffer));
+    UringCallbackDataBuffer *callback_data = new(UringCallbackDataBuffer);
     callback_data->callback = (UnsafePointer)callback;
     callback_data->data = data;
     callback_data->buf = buf;
@@ -187,7 +187,7 @@ void uring_run(Uring *uring)
             UringCallbackData *callback_data = (UringCallbackData *)completion->user_data;
             UringCallback callback = callback_data->callback;
             UnsafePointer data = callback_data->data;
-            free(callback_data);
+            drop(callback_data);
 
             UringCallbackContext context = {uring, completion, data};
             callback(&context);

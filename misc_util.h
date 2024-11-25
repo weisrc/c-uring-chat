@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "mem_util.h"
 
 void *ptr_or_exit(void *ptr, const char *message)
 {
@@ -38,14 +39,14 @@ typedef struct Array Array;
 
 void array_init(Array *array, size_t capacity)
 {
-    array->data = malloc(capacity * sizeof(void *));
+    array->data = new_array(void *, capacity);
     array->length = 0;
     array->capacity = capacity;
 }
 
 void array_resize(Array *array, size_t new_capacity)
 {
-    array->data = realloc(array->data, new_capacity * sizeof(void *));
+    array->data = resize_array(void *, new_capacity, array->data);
     array->capacity = new_capacity;
 }
 
@@ -66,8 +67,8 @@ void *array_get(Array *array, size_t index)
 
 void array_free(Array *array)
 {
-    free(array->data);
-    free(array);
+    drop(array->data);
+    drop(array);
 }
 
 void array_remove(Array *array, size_t index)
@@ -96,20 +97,19 @@ typedef struct Buffer Buffer;
 
 void buffer_init(Buffer *buffer, size_t capacity)
 {
-    buffer->data = malloc(capacity);
+    buffer->data = new_array(char, capacity);
     buffer->capacity = capacity;
     buffer->length = 0;
 }
 
 void buffer_resize(Buffer *buffer, size_t new_capacity)
 {
-    buffer->data = realloc(buffer->data, new_capacity);
+    buffer->data = resize_array(char, new_capacity, buffer->data);
     buffer->capacity = new_capacity;
 }
 
 Buffer buffer_build(size_t capacity)
 {
-    printf("Building buffer with capacity %ld\n", capacity);
     Buffer buffer;
     buffer_init(&buffer, capacity);
     return buffer;
@@ -117,15 +117,12 @@ Buffer buffer_build(size_t capacity)
 
 Buffer *buffer_new(size_t capacity)
 {
-    Buffer *buffer = malloc(sizeof(Buffer));
+    Buffer *buffer = new (Buffer);
     buffer_init(buffer, capacity);
     return buffer;
 }
 
-void buffer_free(Buffer buffer)
-{
-    free(buffer.data);
-}
+#define buffer_free(buffer) drop(buffer.data)
 
 Buffer buffer_copy(Buffer *buffer)
 {
@@ -139,7 +136,7 @@ Buffer buffer_from_string(const char *string)
 {
     Buffer buffer;
     buffer.length = strlen(string) + 1;
-    buffer.data = malloc(buffer.length);
+    buffer.data = new_array(char, buffer.length);
     buffer.capacity = buffer.length;
     strcpy(buffer.data, string);
     return buffer;

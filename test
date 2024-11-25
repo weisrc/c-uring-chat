@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+spam() {
+    while true; do
+        sleep $1
+        echo $2
+    done
+}
+
+stop() {
+    sleep 1
+    echo exit
+}
+
+rm -rf logs
+mkdir -p logs
+
+stop | ./server $1 >> logs/server.txt 2>&1 &
+
+for i in {1..4}; do
+    sleep 0.1
+    spam 0.1 "client_$i" | ./client $1 >> logs/client_$i.txt 2>&1 &
+done
+
+wait
