@@ -6,7 +6,7 @@
 #include "misc_util.h"
 #include <arpa/inet.h>
 
-typedef enum io_uring_op UringOp;
+typedef int UringOp;
 
 typedef unsigned long long UnsafePointer;
 
